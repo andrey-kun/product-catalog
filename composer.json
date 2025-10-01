@@ -1,0 +1,39 @@
+{
+  "name": "andrey-kunitsyn/product-catalog-api",
+  "description": "REST API for product catalog with Elasticsearch and DaData integration",
+  "type": "project",
+  "require": {
+    "php": "8.4",
+    "ext-pdo": "*",
+    "guzzlehttp/guzzle": "7.5",
+    "vlucas/phpdotenv": "5.4",
+    "elasticsearch/elasticsearch": "8.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "10.0",
+    "phpstan/phpstan": "1.10"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "src/App/",
+      "CLI\\": "src/CLI/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit",
+    "test-coverage": "phpunit --coverage-html coverage",
+    "analyze": "phpstan analyze src --level=7"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}

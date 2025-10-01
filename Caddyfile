@@ -1,0 +1,36 @@
+localhost {
+    # Автоматическая настройка HTTPS с Let's Encrypt
+    tls your-email@example.com
+
+    # Перенаправление HTTP на HTTPS
+    redir https://{host}{uri} 301
+
+    # Обслуживание статических файлов
+    root * /var/www/html/public
+
+    # Проксирование PHP-FPM
+    php_fastcgi php:9000
+
+    # Обработка запросов к API
+    @api {
+        path /api/*
+    }
+
+    handle @api {
+        reverse_proxy php:9000
+    }
+
+    # Обработка остальных запросов
+    handle {
+        try_files {path} {path}/ /index.php?{query}
+    }
+
+    # Настройки безопасности
+    header {
+        # Добавление заголовков безопасности
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        X-Content-Type-Options "nosniff"
+    }
+}

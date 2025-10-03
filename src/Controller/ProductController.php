@@ -1,157 +1,154 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller;
 
+use App\Exception\ResourceNotFoundException;
+use App\Exception\ValidationException;
+use App\Exception\ProductException;
+use App\Exception\DuplicateResourceException;
+use App\Exception\ExternalServiceException;
 use App\Service\ProductService;
-use Exception;
+use JsonException;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
-class ProductController
+class ProductController extends AbstractController
 {
-    private ProductService $productService;
+    public function __construct(
+        private readonly ProductService $productService
+    ) {}
 
-    public function __construct(ProductService $productService)
-    {
-        $this->productService = $productService;
-    }
-
-    /**
-     * Получение списка всех товаров
-     */
-    public function index(): string
+    public function listProducts(ServerRequestInterface $request): ResponseInterface
     {
         try {
-            // Получение параметров поиска из запроса
-            $search = $_GET['search'] ?? '';
-            $category = $_GET['category'] ?? '';
-            $inn = $_GET['inn'] ?? '';
-            $barcode = $_GET['barcode'] ?? '';
-            $products = $this->productService->getAll($search, $category, $inn, $barcode);
-            return json_encode([
-                'status' => 'success',
-                'data' => $products
-            ], JSON_THROW_ON_ERROR);
-        } catch (Exception $e) {
-            return json_encode([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], JSON_THROW_ON_ERROR);
+            $filters = $this->extractFilters($request);
+            $limit = (int) ($request->getQueryParams()['limit'] ?? 20);
+            $offset = (int) ($request->getQueryParams()['offset'] ?? 0);
+            
+
+            $useSearch = $this->shouldUseSearch($filters, $limit, $offset);
+            
+            if ($useSearch) {
+                $products = $this->productService->search(
+                    $filters['search'],
+                    $filters['categoryId'],
+                    $filters['inn'],
+                    $filters['barcode'],
+                    $limit,
+                    $offset
+                );
+            } else {
+                $products = $this->productService->getAll(
+                    $filters['search'],
+                    $filters['categoryId'],
+                    $filters['inn'],
+                    $filters['barcode']
+                );
+            }
+
+            return $this->success($products);
+        } catch (ProductException $e) {
+            return $this->error($e->getMessage(), 500);
         }
     }
 
-    /**
-     * Получение конкретного товара по ID
-     */
-    public function show(string $id): string
+    public function getProduct(ServerRequestInterface $request, array $args): ResponseInterface
     {
         try {
-            $product = $this->productService->getById($id);
+            $productId = $this->extractId($args);
+            $product = $this->productService->getById($productId);
+
             if ($product === null) {
-                http_response_code(404);
-                return json_encode([
-                    'status' => 'error',
-                    'message' => 'Product not found'
-                ]);
+                return $this->notFound('Product');
             }
-            return json_encode([
-                'status' => 'success',
-                'data' => $product
-            ]);
-        } catch (Exception $e) {
-            return json_encode([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ]);
+
+            return $this->success($product);
+        } catch (ProductException $e) {
+            return $this->error($e->getMessage(), 500);
         }
     }
 
-    /**
-     * Создание нового товара
-     */
-    public function store(): string
+    public function createProduct(ServerRequestInterface $request): ResponseInterface
     {
         try {
-            $input = json_decode(file_get_contents('php://input'), true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                http_response_code(400);
-                return json_encode([
-                    'status' => 'error',
-                    'message' => 'Invalid JSON data'
-                ]);
-            }
-            $product = $this->productService->create($input);
-            http_response_code(201);
-            return json_encode([
-                'status' => 'success',
-                'data' => $product
-            ]);
-        } catch (Exception $e) {
-            http_response_code(400);
-            return json_encode([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ]);
+            $productData = $this->parseJsonBody($request);
+            $product = $this->productService->create($productData);
+
+            return $this->success($product, 201);
+        } catch (JsonException $e) {
+            return $this->error('Invalid JSON data', 400);
+        } catch (ValidationException $e) {
+            return $this->validationError($e->getErrors(), $e->getMessage());
+        } catch (DuplicateResourceException | ExternalServiceException $e) {
+            return $this->error($e->getMessage(), 409);
+        } catch (ProductException $e) {
+            return $this->error($e->getMessage(), 500);
         }
     }
 
-    /**
-     * Обновление существующего товара
-     */
-    public function update(string $id): string
+    public function updateProduct(ServerRequestInterface $request, array $args): ResponseInterface
     {
         try {
-            $input = json_decode(file_get_contents('php://input'), true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                http_response_code(400);
-                return json_encode([
-                    'status' => 'error',
-                    'message' => 'Invalid JSON data'
-                ]);
-            }
-            $product = $this->productService->update($id, $input);
-            if ($product === null) {
-                http_response_code(404);
-                return json_encode([
-                    'status' => 'error',
-                    'message' => 'Product not found'
-                ]);
-            }
-            return json_encode([
-                'status' => 'success',
-                'data' => $product
-            ]);
-        } catch (Exception $e) {
-            http_response_code(400);
-            return json_encode([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ]);
+            $productId = $this->extractId($args);
+            $productData = $this->parseJsonBody($request);
+            $product = $this->productService->update($productId, $productData);
+
+            return $this->success($product);
+        } catch (JsonException $e) {
+            return $this->error('Invalid JSON data', 400);
+        } catch (ValidationException $e) {
+            return $this->validationError($e->getErrors(), $e->getMessage());
+        } catch (ResourceNotFoundException $e) {
+            return $this->notFound();
+        } catch (DuplicateResourceException | ExternalServiceException $e) {
+            return $this->error($e->getMessage(), 409);
+        } catch (ProductException $e) {
+            return $this->error($e->getMessage(), 500);
         }
     }
 
-    /**
-     * Удаление товара
-     */
-    public function destroy(string $id): string
+    public function deleteProduct(ServerRequestInterface $request, array $args): ResponseInterface
     {
         try {
-            $deleted = $this->productService->delete($id);
-            if (!$deleted) {
-                http_response_code(404);
-                return json_encode([
-                    'status' => 'error',
-                    'message' => 'Product not found'
-                ]);
-            }
-            return json_encode([
-                'status' => 'success',
-                'message' => 'Product deleted successfully'
-            ]);
-        } catch (Exception $e) {
-            http_response_code(500);
-            return json_encode([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ]);
+            $productId = $this->extractId($args);
+            $this->productService->delete($productId);
+
+            return $this->success(['message' => 'Product deleted successfully']);
+        } catch (ResourceNotFoundException $e) {
+            return $this->notFound();
+        } catch (ProductException $e) {
+            return $this->error($e->getMessage(), 500);
         }
+    }
+
+    private function extractFilters(ServerRequestInterface $request): array
+    {
+        $queryParams = $request->getQueryParams();
+
+        return [
+            'search' => $queryParams['query'] ?? $queryParams['search'] ?? '',
+            'categoryId' => isset($queryParams['category_id']) ? (int)$queryParams['category_id'] : null,
+            'inn' => $queryParams['inn'] ?? '',
+            'barcode' => $queryParams['barcode'] ?? '',
+        ];
+    }
+
+    private function shouldUseSearch(array $filters, int $limit, int $offset): bool
+    {
+        if (!empty($filters['search']) || !empty($filters['inn']) || !empty($filters['barcode'])) {
+            return true;
+        }
+
+        if ($filters['categoryId'] !== null) {
+            return true;
+        }
+
+        if ($limit !== 20 || $offset !== 0) {
+            return true;
+        }
+
+        return false;
     }
 }

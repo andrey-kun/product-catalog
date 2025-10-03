@@ -1,113 +1,42 @@
 <?php
 
-use App\DI\Container;
-use App\Controller\ProductController;
-use App\Service\ProductService;
-use App\Repository\ProductRepository;
-use App\Infrastructure\Database\Connection;
+declare(strict_types=1);
 
-// Подключение автозагрузчика Composer
+use App\Http\ResponseEmitter;
+use DI\ContainerBuilder;
+use Laminas\Diactoros\ServerRequestFactory;
+use League\Route\Http\Exception\MethodNotAllowedException;
+use League\Route\Http\Exception\NotFoundException;
+use Symfony\Component\Dotenv\Dotenv;
+
+error_reporting(E_ALL & ~E_DEPRECATED);
+
 require_once __DIR__ . '/../vendor/autoload.php';
 
-// Инициализация DI контейнера
-$container = new Container();
+$dotenv = new Dotenv();
+$dotenv->loadEnv(__DIR__ . '/../.env');
 
-// Регистрация зависимостей
-$container->set(Connection::class, function() {
-    $config = require __DIR__ . '/../config/database.php';
-    return new Connection($config);
-});
+$containerBuilder = new ContainerBuilder();
+$containerBuilder->useAutowiring(true);
+$containerBuilder->useAttributes(true);
+$containerBuilder->addDefinitions(__DIR__ . '/../config/di.php');
+$container = $containerBuilder->build();
 
-$container->set(ProductRepository::class, function($container) {
-    $db = $container->get(Connection::class);
-    return new ProductRepository($db);
-});
+$request = ServerRequestFactory::fromGlobals();
 
-$container->set(ProductService::class, function($container) {
-    $repository = $container->get(ProductRepository::class);
-    return new ProductService($repository);
-});
+$routerFactory = require __DIR__ . '/../config/routes.php';
+$router = $routerFactory($container);
 
-$container->set(ProductController::class, function($container) {
-    $service = $container->get(ProductService::class);
-    return new ProductController($service);
-});
-
-// Обработка запроса
 try {
-    // Определение метода и URI
-    $method = $_SERVER['REQUEST_METHOD'];
-    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $response = $router->dispatch($request);
+    ResponseEmitter::emit($response);
 
-    // Очистка URI от лишних символов
-    $uri = trim($uri, '/');
+} catch (NotFoundException $e) {
+    ResponseEmitter::emitError(404, 'Route not found', 'The requested endpoint does not exist');
 
-    // Разбор маршрутов
-    $route = explode('/', $uri);
-
-    // Определение контроллера и метода
-    if (empty($route[0])) {
-        $controller = 'product';
-        $action = 'index';
-        $id = null;
-    } else {
-        $controller = $route[0];
-        $action = isset($route[1]) ? $route[1] : 'index';
-        $id = isset($route[2]) ? $route[2] : null;
-    }
-
-    // Получение контроллера из DI контейнера
-    $controllerInstance = $container->get(ProductController::class);
-
-    // Вызов соответствующего метода
-    switch ($method) {
-        case 'GET':
-            if ($id !== null) {
-                $response = $controllerInstance->show($id);
-            } else {
-                $response = $controllerInstance->index();
-            }
-            break;
-
-        case 'POST':
-            $response = $controllerInstance->store();
-            break;
-
-        case 'PUT':
-            if ($id !== null) {
-                $response = $controllerInstance->update($id);
-            } else {
-                http_response_code(405);
-                echo json_encode(['error' => 'Method not allowed']);
-                exit;
-            }
-            break;
-
-        case 'DELETE':
-            if ($id !== null) {
-                $response = $controllerInstance->destroy($id);
-            } else {
-                http_response_code(405);
-                echo json_encode(['error' => 'Method not allowed']);
-                exit;
-            }
-            break;
-
-        default:
-            http_response_code(405);
-            echo json_encode(['error' => 'Method not allowed']);
-            exit;
-    }
-
-    // Вывод ответа
-    header('Content-Type: application/json');
-    echo $response;
+} catch (MethodNotAllowedException $e) {
+    ResponseEmitter::emitError(405, 'Method not allowed', 'The HTTP method is not allowed for this endpoint');
 
 } catch (Exception $e) {
-    // Обработка ошибок
-    http_response_code(500);
-    echo json_encode([
-        'error' => 'Internal server error',
-        'message' => $e->getMessage()
-    ]);
+    ResponseEmitter::emitError(500, 'Internal server error', $e->getMessage());
 }

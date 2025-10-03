@@ -1,0 +1,71 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - mysql
+      - elasticsearch
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=product_catalog
+      - DB_USER=root
+      - DB_PASSWORD=password
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+    networks:
+      - app-network
+
+  cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - mysql
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=product_catalog
+      - DB_USER=root
+      - DB_PASSWORD=password
+    networks:
+      - app-network
+
+  mysql:
+    image: mysql:8.4
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: product_catalog
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+
+  elasticsearch:
+    image: elasticsearch:9.1.4
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+volumes:
+  mysql_data:
+    driver: local
+  es_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge

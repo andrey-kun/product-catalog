@@ -1,0 +1,103 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Composer\InstalledVersions;
+use DI\ContainerBuilder;
+use Doctrine\Migrations\Configuration\EntityManager\ExistingEntityManager;
+use Doctrine\Migrations\DependencyFactory;
+use Doctrine\Migrations\Tools\Console\Command as MigrationsCommand;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Tools\Console\ConsoleRunner;
+use Doctrine\ORM\Tools\Console\EntityManagerProvider\SingleManagerProvider;
+use Psr\Container\ContainerInterface;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Dotenv\Dotenv;
+
+error_reporting(E_ALL & ~E_DEPRECATED);
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$dotenv = new Dotenv();
+$dotenv->loadEnv(__DIR__ . '/../.env');
+
+$containerBuilder = new ContainerBuilder();
+$containerBuilder->useAutowiring(true);
+$containerBuilder->useAttributes(true);
+$containerBuilder->addDefinitions(__DIR__ . '/../config/di.php');
+$container = $containerBuilder->build();
+
+$entityManager = $container->get(EntityManagerInterface::class);
+
+$application = new Application(
+        InstalledVersions::getRootPackage()['name'],
+        InstalledVersions::getRootPackage()['pretty_version']
+);
+
+function autoDiscoverCommands(Application $application, string $commandsDir, ContainerInterface $container): void
+{
+    if (!is_dir($commandsDir)) {
+        return;
+    }
+
+    foreach (glob($commandsDir . '/*Command.php', GLOB_NOSORT) as $file) {
+        $filename = basename($file, '.php');
+        $className = 'App\\Command\\' . $filename;
+
+        if (!class_exists($className)) {
+            continue;
+        }
+
+        try {
+            $reflection = new ReflectionClass($className);
+
+            if ($reflection->isAbstract() ||
+                    !$reflection->isSubclassOf(Command::class) ||
+                    !$reflection->isInstantiable()) {
+                continue;
+            }
+
+            $command = $container->get($className);
+
+            if (!$command instanceof Command) {
+                throw new LogicException('Command should be instance of ' . Command::class);
+            }
+
+            $application->add($command);
+
+        } catch (Exception $e) {
+            echo "Error loading $className: " . $e->getMessage() . PHP_EOL;
+        }
+    }
+}
+
+autoDiscoverCommands($application, __DIR__ . '/../src/Command', $container);
+
+$entityManagerProvider = new SingleManagerProvider($entityManager);
+ConsoleRunner::addCommands($application, $entityManagerProvider);
+$migrationsConfig = require __DIR__ . '/../config/doctrine/migrations.php';
+$entityManagerLoader = new ExistingEntityManager($entityManager);
+$dependencyFactory = DependencyFactory::fromEntityManager($migrationsConfig, $entityManagerLoader);
+
+$migrationsCommands = [
+        new MigrationsCommand\DumpSchemaCommand($dependencyFactory),
+        new MigrationsCommand\ExecuteCommand($dependencyFactory),
+        new MigrationsCommand\GenerateCommand($dependencyFactory),
+        new MigrationsCommand\LatestCommand($dependencyFactory),
+        new MigrationsCommand\ListCommand($dependencyFactory),
+        new MigrationsCommand\MigrateCommand($dependencyFactory),
+        new MigrationsCommand\RollupCommand($dependencyFactory),
+        new MigrationsCommand\StatusCommand($dependencyFactory),
+        new MigrationsCommand\SyncMetadataCommand($dependencyFactory),
+        new MigrationsCommand\VersionCommand($dependencyFactory),
+        new MigrationsCommand\UpToDateCommand($dependencyFactory),
+        new MigrationsCommand\DiffCommand($dependencyFactory),
+];
+
+foreach ($migrationsCommands as $command) {
+    $application->add($command);
+}
+
+$application->run();

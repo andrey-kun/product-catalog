@@ -16,19 +16,39 @@ abstract class IntegrationTestCase extends BaseTestCase
         parent::setUp();
         $this->entityManager = $this->testDbManager->getTestEntityManager();
         
-        // Start transaction for this test
-        $this->entityManager->getConnection()->beginTransaction();
+        $connection = $this->entityManager->getConnection();
+        while ($connection->isTransactionActive()) {
+            try {
+                $connection->commit();
+            } catch (\Exception $e) {
+                try {
+                    $connection->rollBack();
+                } catch (\Exception $e2) {
+                    break;
+                }
+            }
+        }
     }
 
     protected function tearDown(): void
     {
-        // Rollback transaction to undo all changes
-        if ($this->entityManager->getConnection()->isTransactionActive()) {
-            $this->entityManager->getConnection()->rollback();
+        $connection = $this->entityManager->getConnection();
+        while ($connection->isTransactionActive()) {
+            try {
+                $connection->commit();
+            } catch (\Exception $e) {
+                try {
+                    $connection->rollBack();
+                } catch (\Exception $e2) {
+                    break;
+                }
+            }
         }
         
         $this->entityManager->clear();
-        
+
+        $this->testDbManager->truncateTables();
+
         parent::tearDown();
     }
 }

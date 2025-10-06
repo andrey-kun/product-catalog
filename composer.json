@@ -56,7 +56,7 @@
     "orm:schema:drop": "php bin/console orm:schema-tool:drop --force",
     "orm:generate:entities": "php bin/console orm:generate:entities src/Entity",
     "orm:generate:proxies": "php bin/console orm:generate:proxies",
-    "fixtures:load": "php bin/console doctrine:fixtures:load",
+    "fixtures:load": "php bin/console app:fixtures:load",
     "fixtures:info": "php bin/console doctrine:fixtures:info",
     "db:purge": "php bin/console doctrine:database:purge"
   },

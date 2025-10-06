@@ -27,7 +27,8 @@ class ProductSearchTest extends FeatureTestCase
     {
         $this->createSearchTestProducts();
 
-        $request = new ServerRequest([], [], '/api/v1/products?query=iPhone', 'GET');
+        $request = (new ServerRequest([], [], '/api/v1/products', 'GET'))
+            ->withQueryParams(['query' => 'iPhone']);
 
         $response = $this->router->dispatch($request);
 
@@ -44,9 +45,10 @@ class ProductSearchTest extends FeatureTestCase
 
     public function testSearchProductsByCategory(): void
     {
-        $this->createSearchTestProductsWithCategories();
+        $categoryId = $this->createSearchTestProductsWithCategories();
 
-        $request = new ServerRequest([], [], '/api/v1/products?category_id=1', 'GET');
+        $request = (new ServerRequest([], [], '/api/v1/products', 'GET'))
+            ->withQueryParams(['category_id' => $categoryId]);
 
         $response = $this->router->dispatch($request);
 
@@ -66,7 +68,8 @@ class ProductSearchTest extends FeatureTestCase
     {
         $this->createSearchTestProducts();
 
-        $request = new ServerRequest([], [], '/api/v1/products?inn=1234567890', 'GET');
+        $request = (new ServerRequest([], [], '/api/v1/products', 'GET'))
+            ->withQueryParams(['inn' => '1234567890']);
 
         $response = $this->router->dispatch($request);
 
@@ -83,7 +86,8 @@ class ProductSearchTest extends FeatureTestCase
     {
         $this->createSearchTestProducts();
 
-        $request = new ServerRequest([], [], '/api/v1/products?barcode=0987654321098', 'GET');
+        $request = (new ServerRequest([], [], '/api/v1/products', 'GET'))
+            ->withQueryParams(['barcode' => '0987654321098']);
 
         $response = $this->router->dispatch($request);
 
@@ -100,7 +104,8 @@ class ProductSearchTest extends FeatureTestCase
     {
         $this->createManyTestProducts();
 
-        $request = new ServerRequest([], [], '/api/v1/products?limit=5&offset=0', 'GET');
+        $request = (new ServerRequest([], [], '/api/v1/products', 'GET'))
+            ->withQueryParams(['limit' => '5', 'offset' => '0']);
 
         $response = $this->router->dispatch($request);
 
@@ -111,7 +116,8 @@ class ProductSearchTest extends FeatureTestCase
         $this->assertIsArray($body['data']);
         $this->assertLessThanOrEqual(5, count($body['data']));
 
-        $request = new ServerRequest([], [], '/api/v1/products?limit=5&offset=5', 'GET');
+        $request = (new ServerRequest([], [], '/api/v1/products', 'GET'))
+            ->withQueryParams(['limit' => '5', 'offset' => '5']);
 
         $response = $this->router->dispatch($request);
 
@@ -124,9 +130,10 @@ class ProductSearchTest extends FeatureTestCase
 
     public function testSearchProductsWithMultipleFilters(): void
     {
-        $this->createSearchTestProductsWithCategories();
+        $categoryId = $this->createSearchTestProductsWithCategories();
 
-        $request = new ServerRequest([], [], '/api/v1/products?query=phone&category_id=1&limit=10', 'GET');
+        $request = (new ServerRequest([], [], '/api/v1/products', 'GET'))
+            ->withQueryParams(['query' => 'phone', 'category_id' => $categoryId, 'limit' => '10']);
 
         $response = $this->router->dispatch($request);
 
@@ -143,7 +150,8 @@ class ProductSearchTest extends FeatureTestCase
 
     public function testSearchProductsNoResults(): void
     {
-        $request = new ServerRequest([], [], '/api/v1/products?query=nonexistentproduct', 'GET');
+        $request = (new ServerRequest([], [], '/api/v1/products', 'GET'))
+            ->withQueryParams(['query' => 'nonexistentproduct']);
 
         $response = $this->router->dispatch($request);
 
@@ -157,7 +165,8 @@ class ProductSearchTest extends FeatureTestCase
 
     public function testSearchProductsWithInvalidPagination(): void
     {
-        $request = new ServerRequest([], [], '/api/v1/products?limit=0&offset=-1', 'GET');
+        $request = (new ServerRequest([], [], '/api/v1/products', 'GET'))
+            ->withQueryParams(['limit' => '0', 'offset' => '-1']);
 
         $response = $this->router->dispatch($request);
 
@@ -174,7 +183,8 @@ class ProductSearchTest extends FeatureTestCase
 
         $startTime = microtime(true);
 
-        $request = new ServerRequest([], [], '/api/v1/products?query=Product&limit=20', 'GET');
+        $request = (new ServerRequest([], [], '/api/v1/products', 'GET'))
+            ->withQueryParams(['query' => 'Product', 'limit' => '20']);
 
         $response = $this->router->dispatch($request);
 
@@ -207,7 +217,7 @@ class ProductSearchTest extends FeatureTestCase
         $this->entityManager->flush();
     }
 
-    private function createSearchTestProductsWithCategories(): void
+    private function createSearchTestProductsWithCategories(): int
     {
         $electronics = new Category('Electronics');
         $books = new Category('Books');
@@ -229,6 +239,8 @@ class ProductSearchTest extends FeatureTestCase
         $this->entityManager->persist($samsung);
         $this->entityManager->persist($book);
         $this->entityManager->flush();
+
+        return $electronics->id;
     }
 
     private function createManyTestProducts(): void

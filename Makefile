@@ -30,6 +30,7 @@ setup: down clean
 	@echo "Waiting for MySQL to be ready..."
 	@sleep 10
 	@make migrate
+	@make generate-proxies
 	@make seed
 	@docker compose -f compose.yaml up -d
 	@echo "Setup complete. API available at http://localhost:8000"
@@ -53,6 +54,10 @@ migrate:
 	@echo "Running migrations..."
 	@docker compose -f compose.yaml run --rm cli composer migrate
 
+generate-proxies:
+	@echo "Generating Doctrine proxies..."
+	@docker compose -f compose.yaml run --rm cli composer orm:generate:proxies
+
 seed:
 	@echo "Seeding database..."
 	@docker compose -f compose.yaml run --rm cli composer fixtures:load
@@ -62,19 +67,19 @@ shell:
 
 test:
 	@echo "Running all tests..."
-	@docker compose -f compose.yaml run --rm cli vendor/bin/phpunit
+	@docker compose -f compose.yaml run --rm cli vendor/bin/phpunit --no-coverage
 
 test-unit:
 	@echo "Running unit tests..."
-	@docker compose -f compose.yaml run --rm cli vendor/bin/phpunit --testsuite=Unit
+	@docker compose -f compose.yaml run --rm cli vendor/bin/phpunit --testsuite=Unit --no-coverage
 
 test-integration:
 	@echo "Running integration tests..."
-	@docker compose -f compose.yaml run --rm cli vendor/bin/phpunit --testsuite=Integration
+	@docker compose -f compose.yaml run --rm cli vendor/bin/phpunit --testsuite=Integration --no-coverage
 
 test-feature:
 	@echo "Running feature tests..."
-	@docker compose -f compose.yaml run --rm cli vendor/bin/phpunit --testsuite=Feature
+	@docker compose -f compose.yaml run --rm cli vendor/bin/phpunit --testsuite=Feature --no-coverage
 
 test-coverage:
 	@echo "Running tests with coverage report..."

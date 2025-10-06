@@ -29,6 +29,10 @@ class TestDatabaseManager
 
     public function createTestDatabase(): void
     {
+        if ($this->testConnection !== null && $this->testEntityManager !== null) {
+            return;
+        }
+
         $dbName = $this->getTestDatabaseName();
 
         $this->connection->executeStatement("DROP DATABASE IF EXISTS `{$dbName}`");
@@ -52,6 +56,14 @@ class TestDatabaseManager
     {
         if ($this->testConnection === null) {
             throw new \RuntimeException('Test database not created. Call createTestDatabase() first.');
+        }
+
+        while ($this->testConnection->isTransactionActive()) {
+            try {
+                $this->testConnection->rollBack();
+            } catch (\Exception $e) {
+                break;
+            }
         }
 
         $tables = ['product_categories', 'products', 'categories'];
@@ -124,8 +136,6 @@ class TestDatabaseManager
             cache: new \Symfony\Component\Cache\Adapter\ArrayAdapter()
         );
 
-        $config->setAutoCommit(false);
-        
         $config->setSecondLevelCacheEnabled(false);
 
         return new \Doctrine\ORM\EntityManager($connection, $config);

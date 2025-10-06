@@ -22,13 +22,11 @@ abstract class TestCase extends BaseTestCase
 
         if (!$this->isUnitTest()) {
             $this->testDbManager = $this->container->get(TestDatabaseManager::class);
-            $this->testDbManager->createTestDatabase();
         }
     }
 
     protected function tearDown(): void
     {
-        // Truncation is handled by IntegrationTestCase for integration tests
         parent::tearDown();
     }
 
@@ -53,7 +51,34 @@ abstract class TestCase extends BaseTestCase
         $containerBuilder->useAttributes(true);
         $containerBuilder->addDefinitions(__DIR__ . '/../config/di.php');
         
-        return $containerBuilder->build();
+        $container = $containerBuilder->build();
+        
+        if (!$this->isUnitTest()) {
+            $testDbManager = $container->get(\Tests\TestDatabaseManager::class);
+            $testDbManager->createTestDatabase();
+            $container->set(\Doctrine\ORM\EntityManagerInterface::class, $testDbManager->getTestEntityManager());
+            
+            $container->set(
+                \Psr\SimpleCache\CacheInterface::class,
+                new \Symfony\Component\Cache\Psr16Cache(new \Symfony\Component\Cache\Adapter\ArrayAdapter())
+            );
+            
+            $testEntityManager = $testDbManager->getTestEntityManager();
+            
+            $productRepository = $testEntityManager->getRepository(\App\Entity\Product::class);
+            $container->set(\App\Repository\ProductRepository::class, $productRepository);
+            
+            $databaseSearchService = new \App\Search\DatabaseSearchService(
+                $productRepository,
+                $testEntityManager
+            );
+            $container->set(
+                \App\Contract\SearchServiceInterface::class,
+                $databaseSearchService
+            );
+        }
+        
+        return $container;
     }
 
     private function isUnitTest(): bool

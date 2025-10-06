@@ -33,12 +33,34 @@ final class DatabaseSearchService implements SearchServiceInterface
                 'barcode' => $filters->barcode
             ]);
 
-            $products = $this->productRepository->findAllWithFilters(
-                $filters->query,
-                $filters->categoryId,
-                $filters->inn,
-                $filters->barcode
-            );
+            $qb = $this->productRepository->createQueryBuilder('p');
+
+            if (!empty($filters->query)) {
+                $qb->andWhere('p.name LIKE :search OR p.description LIKE :search')
+                    ->setParameter('search', '%' . $filters->query . '%');
+            }
+
+            if ($filters->categoryId !== null) {
+                $qb->innerJoin('p.categories', 'c')
+                    ->andWhere('c.id = :categoryId')
+                    ->setParameter('categoryId', $filters->categoryId);
+            }
+
+            if (!empty($filters->inn)) {
+                $qb->andWhere('p.inn = :inn')
+                    ->setParameter('inn', $filters->inn);
+            }
+
+            if (!empty($filters->barcode)) {
+                $qb->andWhere('p.barcode = :barcode')
+                    ->setParameter('barcode', $filters->barcode);
+            }
+
+            $products = $qb->orderBy('p.name', 'ASC')
+                ->setMaxResults($filters->limit)
+                ->setFirstResult($filters->offset)
+                ->getQuery()
+                ->getResult();
 
             $results = [];
             foreach ($products as $product) {
@@ -52,10 +74,6 @@ final class DatabaseSearchService implements SearchServiceInterface
                     categories: $productData['categories'] ?? []
                 );
             }
-
-            $this->logger->debug('Database search completed', [
-                'results_count' => count($results)
-            ]);
 
             return $results;
 

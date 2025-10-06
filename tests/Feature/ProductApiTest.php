@@ -8,6 +8,7 @@ use App\Entity\Category;
 use App\Entity\Product;
 use Doctrine\ORM\EntityManagerInterface;
 use Laminas\Diactoros\ServerRequest;
+use Laminas\Diactoros\Stream;
 use App\Http\ExceptionHandlingRouter;
 
 class ProductApiTest extends FeatureTestCase
@@ -55,12 +56,8 @@ class ProductApiTest extends FeatureTestCase
         $this->entityManager->persist($product);
         $this->entityManager->flush();
 
-        $request = new ServerRequest(
-            [],
-            [],
-            '/api/v1/products?query=iPhone&category_id=' . $category->id,
-            'GET'
-        );
+        $request = (new ServerRequest([], [], '/api/v1/products', 'GET'))
+            ->withQueryParams(['query' => 'iPhone', 'category_id' => $category->id]);
 
         $response = $this->router->dispatch($request);
 
@@ -122,24 +119,16 @@ class ProductApiTest extends FeatureTestCase
 
         $productData = [
             'name' => 'New Product',
-            'inn' => '1234567890',
-            'barcode' => '1234567890123',
+            'inn' => '9876543210',
+            'barcode' => '9876543210987',
             'description' => 'New product description',
             'category_ids' => [$category->id]
         ];
 
-        $request = new ServerRequest(
-            [],
-            [],
-            '/api/v1/products',
-            'POST',
-            'php://input',
-            ['Content-Type' => 'application/json'],
-            [],
-            [],
-            [],
-            json_encode($productData)
-        );
+        $request = new ServerRequest([], [], '/api/v1/products', 'POST');
+        $request = $request->withBody(new \Laminas\Diactoros\Stream('php://temp', 'w+'));
+        $request->getBody()->write(json_encode($productData));
+        $request->getBody()->rewind();
 
         $response = $this->router->dispatch($request);
 
@@ -148,8 +137,8 @@ class ProductApiTest extends FeatureTestCase
         $body = json_decode($response->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
         $this->assertEquals('success', $body['status']);
         $this->assertEquals('New Product', $body['data']['name']);
-        $this->assertEquals('1234567890', $body['data']['inn']);
-        $this->assertEquals('1234567890123', $body['data']['barcode']);
+        $this->assertEquals('9876543210', $body['data']['inn']);
+        $this->assertEquals('9876543210987', $body['data']['barcode']);
         $this->assertArrayHasKey('categories', $body['data']);
         $this->assertCount(1, $body['data']['categories']);
 
@@ -160,18 +149,10 @@ class ProductApiTest extends FeatureTestCase
 
     public function testCreateProductWithInvalidData(): void
     {
-        $request = new ServerRequest(
-            [],
-            [],
-            '/api/v1/products',
-            'POST',
-            'php://input',
-            ['Content-Type' => 'application/json'],
-            [],
-            [],
-            [],
-            '{}'
-        );
+        $request = new ServerRequest([], [], '/api/v1/products', 'POST');
+        $request = $request->withBody(new \Laminas\Diactoros\Stream('php://temp', 'w+'));
+        $request->getBody()->write('{}');
+        $request->getBody()->rewind();
 
         $response = $this->router->dispatch($request);
 
@@ -183,30 +164,22 @@ class ProductApiTest extends FeatureTestCase
 
     public function testCreateProductWithDuplicateInn(): void
     {
-        $product1 = new Product('Product 1', '1234567890', '1234567890123', 'Description 1');
+        $product1 = new Product('Product 1', '8888888888', '8888888888888', 'Description 1');
         $this->entityManager->persist($product1);
         $this->entityManager->flush();
 
         $duplicateData = [
             'name' => 'Product 2',
-            'inn' => '1234567890', // Same INN
-            'barcode' => '1234567890124',
+            'inn' => '8888888888', // Same INN
+            'barcode' => '8888888888889',
             'description' => 'Description 2',
             'category_ids' => []
         ];
 
-        $request = new ServerRequest(
-            [],
-            [],
-            '/api/v1/products',
-            'POST',
-            'php://input',
-            ['Content-Type' => 'application/json'],
-            [],
-            [],
-            [],
-            json_encode($duplicateData)
-        );
+        $request = new ServerRequest([], [], '/api/v1/products', 'POST');
+        $request = $request->withBody(new \Laminas\Diactoros\Stream('php://temp', 'w+'));
+        $request->getBody()->write(json_encode($duplicateData));
+        $request->getBody()->rewind();
 
         $response = $this->router->dispatch($request);
 
@@ -218,7 +191,7 @@ class ProductApiTest extends FeatureTestCase
 
     public function testUpdateProduct(): void
     {
-        $product = new Product('Original Name', '1234567890', '1234567890123', 'Original description');
+        $product = new Product('Original Name', '7777777777', '7777777777777', 'Original description');
         $this->entityManager->persist($product);
         $this->entityManager->flush();
 
@@ -227,18 +200,10 @@ class ProductApiTest extends FeatureTestCase
             'description' => 'Updated description'
         ];
 
-        $request = new ServerRequest(
-            [],
-            [],
-            '/api/v1/products/' . $product->id,
-            'PUT',
-            'php://input',
-            ['Content-Type' => 'application/json'],
-            [],
-            [],
-            [],
-            json_encode($updateData)
-        );
+        $request = new ServerRequest([], [], '/api/v1/products/' . $product->id, 'PUT');
+        $request = $request->withBody(new \Laminas\Diactoros\Stream('php://temp', 'w+'));
+        $request->getBody()->write(json_encode($updateData));
+        $request->getBody()->rewind();
 
         $response = $this->router->dispatch($request);
 
@@ -248,7 +213,7 @@ class ProductApiTest extends FeatureTestCase
         $this->assertEquals('success', $body['status']);
         $this->assertEquals('Updated Name', $body['data']['name']);
         $this->assertEquals('Updated description', $body['data']['description']);
-        $this->assertEquals('1234567890', $body['data']['inn']);
+        $this->assertEquals('7777777777', $body['data']['inn']);
 
         $this->entityManager->refresh($product);
         $this->assertEquals('Updated Name', $product->name);
@@ -262,18 +227,10 @@ class ProductApiTest extends FeatureTestCase
             'description' => 'Updated description'
         ];
 
-        $request = new ServerRequest(
-            [],
-            [],
-            '/api/v1/products/999',
-            'PUT',
-            'php://input',
-            ['Content-Type' => 'application/json'],
-            [],
-            [],
-            [],
-            json_encode($updateData)
-        );
+        $request = new ServerRequest([], [], '/api/v1/products/999', 'PUT');
+        $request = $request->withBody(new \Laminas\Diactoros\Stream('php://temp', 'w+'));
+        $request->getBody()->write(json_encode($updateData));
+        $request->getBody()->rewind();
 
         $response = $this->router->dispatch($request);
 
@@ -285,7 +242,7 @@ class ProductApiTest extends FeatureTestCase
 
     public function testDeleteProduct(): void
     {
-        $product = new Product('To Delete', '1234567890', '1234567890123', 'Will be deleted');
+        $product = new Product('To Delete', '6666666666', '6666666666666', 'Will be deleted');
         $this->entityManager->persist($product);
         $this->entityManager->flush();
 

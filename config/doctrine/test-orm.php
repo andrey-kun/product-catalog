@@ -18,7 +18,8 @@ $config = ORMSetup::createAttributeMetadataConfiguration(
     new ArrayAdapter()
 );
 
-$config->setAutoCommit(false);
+$config->setAutoGenerateProxyClasses(true);
+$config->setSQLLogger(null);
 
 $connectionParams = [
     'driver' => 'pdo_mysql',
@@ -30,7 +31,7 @@ $connectionParams = [
     'charset' => $dbConfig['charset'] ?? 'utf8mb4',
     'driverOptions' => [
         PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci',
-        PDO::ATTR_AUTOCOMMIT => false,
+        PDO::ATTR_AUTOCOMMIT => true,
     ]
 ];
 

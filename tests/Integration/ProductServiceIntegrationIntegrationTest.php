@@ -123,13 +123,13 @@ class ProductServiceIntegrationIntegrationTest extends IntegrationTestCase
         $this->entityManager->persist($category2);
         $this->entityManager->flush();
 
-        $product1 = TestDataFactory::createProduct('iPhone 15', null, null, 'Smartphone');
+        $product1 = TestDataFactory::createProduct('iPhone 15', '1234567890', '1234567890123', 'Smartphone');
         $product1->categories->add($category1);
 
-        $product2 = TestDataFactory::createProduct('Programming Book', null, null, 'Technical book');
+        $product2 = TestDataFactory::createProduct('Programming Book', '0987654321', '0987654321098', 'Technical book');
         $product2->categories->add($category2);
 
-        $product3 = TestDataFactory::createProduct('Samsung Galaxy', null, null, 'Another smartphone');
+        $product3 = TestDataFactory::createProduct('Samsung Galaxy', '5555555555', '5555555555555', 'Another smartphone');
         $product3->categories->add($category1);
 
         $this->entityManager->persist($product1);
@@ -174,7 +174,7 @@ class ProductServiceIntegrationIntegrationTest extends IntegrationTestCase
 
     public function testProductUniquenessConstraints(): void
     {
-        $product1 = TestDataFactory::createProduct('Product 1', null, null, 'Description 1');
+        $product1 = TestDataFactory::createProduct('Product 1', '1234567890', '1111111111111', 'Description 1');
         $this->entityManager->persist($product1);
         $this->entityManager->flush();
 
@@ -192,7 +192,7 @@ class ProductServiceIntegrationIntegrationTest extends IntegrationTestCase
 
     public function testProductBarcodeUniqueness(): void
     {
-        $product1 = TestDataFactory::createProduct('Product 1', null, null, 'Description 1');
+        $product1 = TestDataFactory::createProduct('Product 1', '1111111111', '1234567890123', 'Description 1');
         $this->entityManager->persist($product1);
         $this->entityManager->flush();
 
@@ -210,8 +210,8 @@ class ProductServiceIntegrationIntegrationTest extends IntegrationTestCase
 
     public function testUpdateProductWithDuplicateInn(): void
     {
-        $product1 = TestDataFactory::createProduct('Product 1', null, null, 'Description 1');
-        $product2 = TestDataFactory::createProduct('Product 2', null, null, 'Description 2');
+        $product1 = TestDataFactory::createProduct('Product 1', '1234567890', '1111111111111', 'Description 1');
+        $product2 = TestDataFactory::createProduct('Product 2', '0987654321', '2222222222222', 'Description 2');
 
         $this->entityManager->persist($product1);
         $this->entityManager->persist($product2);

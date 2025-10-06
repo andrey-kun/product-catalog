@@ -65,7 +65,7 @@ return [
     CompanyDataProviderInterface::class => static function () {
         $apiKey = $_ENV['DADATA_API_KEY'] ?? null;
 
-        if ($apiKey && $apiKey !== 'your-dadata-api-key') {
+        if ($apiKey && $apiKey !== 'your-dadata-api-key' && $apiKey !== 'test-key') {
             $client = new DaDataClient(new Client(), $apiKey);
             return new DaDataCompanyProvider($client);
         }

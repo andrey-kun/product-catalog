@@ -80,7 +80,7 @@ class ProductApiFeatureTest extends FeatureTestCase
         $this->entityManager->persist($product);
         $this->entityManager->flush();
 
-        $request = new ServerRequest([], [], '/api/v1/products/', 'GET');
+        $request = new ServerRequest([], [], '/api/v1/products/' . $product->id, 'GET');
 
         $response = $this->router->dispatch($request);
 
@@ -113,8 +113,8 @@ class ProductApiFeatureTest extends FeatureTestCase
 
         $productData = [
             'name' => 'New Product',
-            'inn' => '1234567890',
-            'barcode' => '1234567890123',
+            'inn' => '5555555555',
+            'barcode' => '5555555555555',
             'description' => 'New product description',
             'category_ids' => [$category->id]
         ];
@@ -131,8 +131,8 @@ class ProductApiFeatureTest extends FeatureTestCase
         $body = json_decode($response->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
         $this->assertEquals('success', $body['status']);
         $this->assertEquals('New Product', $body['data']['name']);
-        $this->assertEquals('1234567890', $body['data']['inn']);
-        $this->assertEquals('1234567890123', $body['data']['barcode']);
+        $this->assertEquals('5555555555', $body['data']['inn']);
+        $this->assertEquals('5555555555555', $body['data']['barcode']);
         $this->assertArrayHasKey('categories', $body['data']);
         $this->assertCount(1, $body['data']['categories']);
 
@@ -155,11 +155,21 @@ class ProductApiFeatureTest extends FeatureTestCase
 
     public function testCreateProductWithDuplicateInn(): void
     {
-        $product1 = new Product('Product 1', '1234567890', '1234567890123', 'Description 1');
+        $product1 = new Product('Product 1', '4444444444', '4444444444444', 'Description 1');
         $this->entityManager->persist($product1);
         $this->entityManager->flush();
 
+        $productData = [
+            'name' => 'Product 2',
+            'inn' => '4444444444', // Duplicate INN
+            'barcode' => '4444444444445',
+            'description' => 'Description 2'
+        ];
+
         $request = new ServerRequest([], [], '/api/v1/products', 'POST');
+        $request = $request->withBody(new Stream('php://temp', 'w+'));
+        $request->getBody()->write(json_encode($productData));
+        $request->getBody()->rewind();
 
         $response = $this->router->dispatch($request);
 
@@ -171,11 +181,19 @@ class ProductApiFeatureTest extends FeatureTestCase
 
     public function testUpdateProduct(): void
     {
-        $product = new Product('Original Name', '1234567890', '1234567890123', 'Original description');
+        $product = new Product('Original Name', '3333333333', '3333333333333', 'Original description');
         $this->entityManager->persist($product);
         $this->entityManager->flush();
 
-        $request = new ServerRequest([], [], '/api/v1/products/', 'PUT');
+        $updateData = [
+            'name' => 'Updated Name',
+            'description' => 'Updated description'
+        ];
+
+        $request = new ServerRequest([], [], '/api/v1/products/' . $product->id, 'PUT');
+        $request = $request->withBody(new Stream('php://temp', 'w+'));
+        $request->getBody()->write(json_encode($updateData));
+        $request->getBody()->rewind();
 
         $response = $this->router->dispatch($request);
 
@@ -185,7 +203,7 @@ class ProductApiFeatureTest extends FeatureTestCase
         $this->assertEquals('success', $body['status']);
         $this->assertEquals('Updated Name', $body['data']['name']);
         $this->assertEquals('Updated description', $body['data']['description']);
-        $this->assertEquals('1234567890', $body['data']['inn']);
+        $this->assertEquals('3333333333', $body['data']['inn']);
 
         $this->entityManager->refresh($product);
         $this->assertEquals('Updated Name', $product->name);
@@ -206,13 +224,13 @@ class ProductApiFeatureTest extends FeatureTestCase
 
     public function testDeleteProduct(): void
     {
-        $product = new Product('To Delete', '1234567890', '1234567890123', 'Will be deleted');
+        $product = new Product('To Delete', '2222222222', '2222222222222', 'Will be deleted');
         $this->entityManager->persist($product);
         $this->entityManager->flush();
 
         $productId = $product->id;
 
-        $request = new ServerRequest([], [], '/api/v1/products/', 'DELETE');
+        $request = new ServerRequest([], [], '/api/v1/products/' . $productId, 'DELETE');
 
         $response = $this->router->dispatch($request);
 

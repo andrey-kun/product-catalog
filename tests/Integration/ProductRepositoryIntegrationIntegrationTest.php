@@ -63,13 +63,13 @@ class ProductRepositoryIntegrationIntegrationTest extends IntegrationTestCase
         $this->entityManager->persist($category2);
         $this->entityManager->flush();
 
-        $product1 = TestDataFactory::createProduct('iPhone 15', null, null, 'Smartphone');
+        $product1 = TestDataFactory::createProduct('iPhone 15', '1234567890', '1234567890123', 'Smartphone');
         $product1->categories->add($category1);
 
-        $product2 = TestDataFactory::createProduct('Programming Book', null, null, 'Technical book');
+        $product2 = TestDataFactory::createProduct('Programming Book', '0987654321', '0987654321098', 'Technical book');
         $product2->categories->add($category2);
 
-        $product3 = TestDataFactory::createProduct('Samsung Galaxy', null, null, 'Another smartphone');
+        $product3 = TestDataFactory::createProduct('Samsung Galaxy', '5555555555', '5555555555555', 'Another smartphone');
         $product3->categories->add($category1);
 
         $this->entityManager->persist($product1);

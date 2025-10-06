@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Client\DaDataClient;
+use App\Client\DaDataClientInterface;
 use App\Contract\CompanyDataProviderInterface;
 use App\Contract\InnValidatorInterface;
 use App\Contract\SearchServiceInterface;
@@ -62,11 +63,20 @@ return [
         );
     },
 
-    CompanyDataProviderInterface::class => static function () {
+    DaDataClientInterface::class => static function () {
         $apiKey = $_ENV['DADATA_API_KEY'] ?? null;
 
         if ($apiKey && $apiKey !== 'your-dadata-api-key' && $apiKey !== 'test-key') {
-            $client = new DaDataClient(new Client(), $apiKey);
+            return new DaDataClient(new Client(), $apiKey);
+        }
+
+        return null;
+    },
+
+    CompanyDataProviderInterface::class => static function (ContainerInterface $container) {
+        $client = $container->get(DaDataClientInterface::class);
+
+        if ($client !== null) {
             return new DaDataCompanyProvider($client);
         }
 

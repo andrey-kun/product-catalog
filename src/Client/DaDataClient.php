@@ -13,7 +13,7 @@ use GuzzleHttp\Exception\RequestException;
 use SensitiveParameter;
 use Throwable;
 
-final class DaDataClient
+final class DaDataClient implements DaDataClientInterface
 {
     private const string API_URL = 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/';
     private const int TIMEOUT = 5;

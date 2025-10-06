@@ -22,12 +22,17 @@ make up
 docker compose -f compose.yaml run --rm cli composer install
 ```
 
-3. Выполните миграции:
+3. Создайте .env файл на основе шаблона:
+```bash
+cp .env.dist .env
+```
+
+4. Выполните миграции:
 ```bash
 make migrate
 ```
 
-4. Загрузите тестовые данные:
+5. Загрузите тестовые данные:
 ```bash
 make seed
 ```

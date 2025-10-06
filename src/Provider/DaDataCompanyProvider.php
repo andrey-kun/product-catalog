@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Provider;
 
-use App\Client\DaDataClient;
+use App\Client\DaDataClientInterface;
 use App\Contract\CompanyData;
 use App\Contract\CompanyDataProviderInterface;
 use App\Contract\DaData\PartyType;
@@ -12,7 +12,7 @@ use App\Contract\DaData\PartyType;
 final class DaDataCompanyProvider implements CompanyDataProviderInterface
 {
     public function __construct(
-        private readonly DaDataClient $client
+        private readonly DaDataClientInterface $client
     )
     {
     }
